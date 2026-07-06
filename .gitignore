@@ -1,0 +1,21 @@
+# ─── Secrets (NE JAMAIS envoyer sur GitHub) ───
+.env
+.env.*
+*.key
+
+# ─── Dépendances (réinstallées avec npm install) ───
+node_modules/
+
+# ─── Fichiers générés à l'exécution ───
+sortie-import/
+*.mp4
+test-video-kling.mp4
+video-brute.mp4
+
+# ─── Fichiers système ───
+.DS_Store
+Thumbs.db
+*.log
+
+# ─── Fichiers de données locaux ───
+titres-generes.json
