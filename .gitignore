@@ -19,3 +19,6 @@ Thumbs.db
 
 # ─── Fichiers de données locaux ───
 titres-generes.json
+data/
+
+test*.js

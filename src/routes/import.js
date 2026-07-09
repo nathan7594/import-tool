@@ -141,6 +141,7 @@ async function traiterProduit(paquet) {
     } : null,
     fournisseur: paquet.fournisseur || null,
     reference: paquet.reference || null,
+    pfsUrl: paquet.pageUrl || null,
     statut: 'ACTIVE',
     imagesParCouleur,
     store: process.env.SHOPIFY_STORE,

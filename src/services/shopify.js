@@ -52,11 +52,12 @@ const TARGET_GENDER_FEMININ = 'gid://shopify/Metaobject/470501916998';
 
 // Emplacement de stock (mescopines) — lu depuis .env
 const LOCATION_ID = process.env.SHOPIFY_LOCATION_ID || null;
-
+// Canal "Boutique en ligne" (pour publier le produit) — lu depuis .env
+const ONLINE_STORE_PUB_ID = process.env.SHOPIFY_ONLINE_STORE_PUBLICATION_ID || null;
 // ─── Normalisation des couleurs PFS -> palette mescopines ───
 // Priorite au colorReference PFS (anglais, fiable : BLAZING_YELLOW, SKY_BLUE...).
 // Le label FR ("Jaune Citron") sert de secours.
-function normaliserCouleur(label, reference) {
+export function normaliserCouleur(label, reference) {
   // 1. D'abord essayer le colorReference PFS (code anglais)
   if (reference) {
     const r = reference.toUpperCase();
@@ -65,13 +66,13 @@ function normaliserCouleur(label, reference) {
       [['BLUE', 'NAVY', 'TURQUOISE', 'PETROL', 'TEAL', 'DENIM', 'JEAN'], 'BLEU'],
       [['BLACK'], 'NOIR'],
       [['WHITE', 'IVORY', 'OFF_WHITE'], 'BLANC'],
-      [['GREEN', 'KHAKI', 'OLIVE', 'MINT', 'EMERALD'], 'VERT'],
+      [['GREEN', 'KHAKI', 'KAKI', 'OLIVE', 'MINT', 'EMERALD', 'WASABI', 'AMAZON', 'LIME'], 'VERT'],
       [['PINK', 'FUCHSIA', 'ROSE', 'SALMON', 'MAGENTA', 'BLUSH'], 'ROSE'],
-      [['BEIGE', 'CREAM', 'NUDE', 'SAND', 'TAUPE', 'ECRU', 'CAMEL'], 'BEIGE'],
-      [['BROWN', 'CHOCOLATE', 'COGNAC', 'MOCHA', 'BRUN'], 'MARRON'],
+      [['BEIGE', 'CREAM', 'NUDE', 'SAND', 'TAUPE', 'ECRU', 'CAMEL', 'VANILLA'], 'BEIGE'],
+      [['BROWN', 'CHOCOLATE', 'COGNAC', 'MOCHA', 'BRUN', 'MARRON'], 'MARRON'],
       [['RED', 'BORDEAUX', 'BURGUNDY', 'WINE', 'CORAL'], 'ROUGE'],
-      [['YELLOW', 'MUSTARD', 'GOLD', 'LEMON'], 'JAUNE'],
-      [['ORANGE', 'APRICOT', 'PEACH'], 'ORANGE'],
+      [['YELLOW', 'MUSTARD', 'GOLD', 'LEMON', 'FREESIA'], 'JAUNE'],
+      [['ORANGE', 'APRICOT', 'PEACH', 'TERRACOTTA', 'RUST'], 'ORANGE'],
       [['GRAY', 'GREY', 'ANTHRACITE', 'SILVER'], 'GRIS'],
       [['PURPLE', 'VIOLET', 'LILAC', 'LAVENDER', 'PLUM', 'MAUVE'], 'VIOLET'],
       [['BRONZE'], 'BRONZE'],
@@ -192,7 +193,7 @@ export function estUnHaut(categorie) {
 // ─── Creation du produit ───
 // couleurs : [{label, hex}]  (chaque couleur sera une valeur d'option, normalisee)
 // tailles  : [46,48,...]
-export async function creerProduit({ titre, couleurs, tailles, prix, stock = 0, tag, tags = null, productType = null, description, metaDescription = null, altImages = null, atouts = null, compositionHtml = null, avis = null, videoFileId = null, fournisseur = null, reference = null, statut = 'DRAFT', imagesParCouleur = null, store }) {
+export async function creerProduit({ titre, couleurs, tailles, prix, stock = 0, tag, tags = null, productType = null, description, metaDescription = null, altImages = null, atouts = null, compositionHtml = null, avis = null, videoFileId = null, fournisseur = null, reference = null, pfsUrl = null, statut = 'DRAFT', imagesParCouleur = null, store }) {
   // 1. Normaliser les couleurs et garder celles qui ont un metaobject
   const couleursNorm = [];
   for (const c of couleurs) {
@@ -270,6 +271,11 @@ export async function creerProduit({ titre, couleurs, tailles, prix, stock = 0, 
         champs.push({ ownerId: productGid, namespace: 'custom', key: 'reference', value: String(reference), type: 'single_line_text_field' });
         // SKU = "NC" + référence (ex: NC2326), champ séparé
         champs.push({ ownerId: productGid, namespace: 'custom', key: 'sku', value: `NC${reference}`, type: 'single_line_text_field' });
+      }
+      // URL PFS d'origine + flag de surveillance (pour le check de disponibilité)
+      if (pfsUrl) {
+        champs.push({ ownerId: productGid, namespace: 'custom', key: 'pfs_url', value: String(pfsUrl), type: 'single_line_text_field' });
+        champs.push({ ownerId: productGid, namespace: 'custom', key: 'check', value: 'on', type: 'single_line_text_field' });
       }
       // Atouts (façon Gymshark) : intro + 3 atouts dans des metafields custom
       if (atouts) {
@@ -459,6 +465,24 @@ export async function creerProduit({ titre, couleurs, tailles, prix, stock = 0, 
         if (errApp.length) console.log(`   [shopify] assoc image-variante ${norm} :`, JSON.stringify(errApp));
         else console.log(`   [shopify] ${norm} : image associée à ${variantIds.length} variantes`);
       }
+    }
+  }
+
+  // 8. PUBLIER le produit sur la Boutique en ligne (sinon actif mais invisible)
+  if (ONLINE_STORE_PUB_ID) {
+    try {
+      const pub = await shopifyGraphQL(`
+        mutation publish($id: ID!, $pubId: ID!) {
+          publishablePublish(id: $id, input: { publicationId: $pubId }) {
+            userErrors { field message }
+          }
+        }
+      `, { id: productGid, pubId: ONLINE_STORE_PUB_ID });
+      const errPub = pub.publishablePublish?.userErrors || [];
+      if (errPub.length) console.log('   [shopify] ⚠️ publication :', JSON.stringify(errPub));
+      else console.log('   [shopify] ✅ produit publié sur la Boutique en ligne');
+    } catch (err) {
+      console.log(`   [shopify] ⚠️ publication échouée : ${err.message}`);
     }
   }
 

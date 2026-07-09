@@ -5,6 +5,10 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import importRoute from './routes/import.js';
+import checkRoute from './routes/check.js';
+import historiqueRoute from './routes/historique.js';
+import commandesRoute from './routes/commandes.js';
+import accueilRoute from './routes/accueil.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +25,12 @@ app.get('/ping', (req, res) => {
 
 // La route principale appelee par la modale.
 app.use('/', importRoute);
+app.use('/', checkRoute);
+app.use('/', historiqueRoute);
+app.use('/', checkRoute);
+app.use('/', historiqueRoute);
+app.use('/', commandesRoute);
+app.use('/', accueilRoute);
 
 app.listen(PORT, () => {
   console.log('───────────────────────────────────────────');
