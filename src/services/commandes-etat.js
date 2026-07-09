@@ -1,39 +1,40 @@
 // services/commandes-etat.js
-// Sauvegarde l'état "acheté" de chaque vente (par id unique orderName::lineItemId).
-// Fichier disque -> permanent, réversible (on peut décocher).
+// État acheté/pas des ventes — stocké dans Supabase (table "commandes_etat").
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { supabase } from './supabase-client.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DOSSIER = join(__dirname, '..', '..', 'data');
-const FICHIER = join(DOSSIER, 'commandes-etat.json');
-
-// { "id de vente": true }  => acheté. Absent ou false => à acheter.
+// renvoie { "vente_id": true }
 export async function lireEtats() {
   try {
-    if (!existsSync(FICHIER)) return {};
-    return JSON.parse(await readFile(FICHIER, 'utf8'));
-  } catch {
+    const { data, error } = await supabase
+      .from('commandes_etat')
+      .select('vente_id, achete');
+    if (error) throw error;
+    const map = {};
+    for (const r of data || []) if (r.achete) map[r.vente_id] = true;
+    return map;
+  } catch (err) {
+    console.error('[commandes-etat] lecture :', err.message);
     return {};
   }
 }
 
-// Cocher/décocher un ou plusieurs ids
+// cocher (achete=true) ou décocher (achete=false) une liste d'ids
 export async function setEtat(ids, achete) {
   try {
-    if (!existsSync(DOSSIER)) await mkdir(DOSSIER, { recursive: true });
-    const etats = await lireEtats();
-    for (const id of ids) {
-      if (achete) etats[id] = true;
-      else delete etats[id];
+    if (achete) {
+      // upsert des lignes achetées
+      const rows = ids.map((id) => ({ vente_id: id, achete: true, updated_at: new Date().toISOString() }));
+      const { error } = await supabase.from('commandes_etat').upsert(rows);
+      if (error) throw error;
+    } else {
+      // décocher = supprimer les lignes
+      const { error } = await supabase.from('commandes_etat').delete().in('vente_id', ids);
+      if (error) throw error;
     }
-    await writeFile(FICHIER, JSON.stringify(etats, null, 2), 'utf8');
     return true;
   } catch (err) {
-    console.error('[commandes-etat] erreur :', err.message);
+    console.error('[commandes-etat] écriture :', err.message);
     return false;
   }
 }

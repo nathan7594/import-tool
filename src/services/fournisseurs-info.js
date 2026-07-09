@@ -1,35 +1,36 @@
 // services/fournisseurs-info.js
-// Adresse + téléphone de chaque fournisseur, éditables depuis la page.
-// Fichier disque -> permanent.
+// Infos fournisseurs (adresse/téléphone) — stockées dans Supabase (table "fournisseurs").
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { supabase } from './supabase-client.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DOSSIER = join(__dirname, '..', '..', 'data');
-const FICHIER = join(DOSSIER, 'fournisseurs.json');
-
-// { "DL CREATION": { adresse: "...", telephone: "..." } }
+// renvoie { "NOM": { adresse, telephone } }
 export async function lireFournisseurs() {
   try {
-    if (!existsSync(FICHIER)) return {};
-    return JSON.parse(await readFile(FICHIER, 'utf8'));
-  } catch {
+    const { data, error } = await supabase
+      .from('fournisseurs')
+      .select('nom, adresse, telephone');
+    if (error) throw error;
+    const map = {};
+    for (const r of data || []) map[r.nom] = { adresse: r.adresse || '', telephone: r.telephone || '' };
+    return map;
+  } catch (err) {
+    console.error('[fournisseurs] lecture :', err.message);
     return {};
   }
 }
 
 export async function setFournisseur(nom, adresse, telephone) {
   try {
-    if (!existsSync(DOSSIER)) await mkdir(DOSSIER, { recursive: true });
-    const all = await lireFournisseurs();
-    all[nom] = { adresse: adresse || '', telephone: telephone || '' };
-    await writeFile(FICHIER, JSON.stringify(all, null, 2), 'utf8');
+    const { error } = await supabase.from('fournisseurs').upsert({
+      nom,
+      adresse: adresse || '',
+      telephone: telephone || '',
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
     return true;
   } catch (err) {
-    console.error('[fournisseurs-info] erreur :', err.message);
+    console.error('[fournisseurs] écriture :', err.message);
     return false;
   }
 }

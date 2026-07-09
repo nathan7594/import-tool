@@ -1,56 +1,42 @@
 // services/journal.js
-// Journal des actions du check, sauvegardé dans un FICHIER sur le disque.
-// Survit aux redémarrages, fermeture de Chrome, etc. (contrairement à la mémoire).
-//
-// Format : un fichier JSON qui contient un tableau d'entrées.
-// Chaque entrée = un run de check avec ce qui a été fait.
+// Journal des checks — stocké dans Supabase (table "historique").
+// Mêmes fonctions qu'avant (lireJournal / ajouterEntree) pour ne rien casser ailleurs.
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { supabase } from './supabase-client.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Fichier stocké à la racine du backend, dossier "data"
-const DOSSIER = join(__dirname, '..', '..', 'data');
-const FICHIER = join(DOSSIER, 'historique.json');
-
-// Limite : on garde les 1000 derniers runs (évite que le fichier grossisse à l'infini)
-const MAX_ENTREES = 1000;
-
-// ─────────────────────────────────────────────────────────────
-// Lire tout l'historique (tableau, le plus récent en premier)
-// ─────────────────────────────────────────────────────────────
 export async function lireJournal() {
   try {
-    if (!existsSync(FICHIER)) return [];
-    const txt = await readFile(FICHIER, 'utf8');
-    return JSON.parse(txt);
-  } catch {
+    const { data, error } = await supabase
+      .from('historique')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(1000);
+    if (error) throw error;
+    // remettre au format attendu par les pages (date en string ISO)
+    return (data || []).map((r) => ({
+      date: r.date,
+      mode: r.mode,
+      totalVerifies: r.total_verifies,
+      alerte: r.alerte,
+      produits: r.produits || [],
+    }));
+  } catch (err) {
+    console.error('[journal] lecture Supabase :', err.message);
     return [];
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Ajouter une entrée au journal
-//   entree = {
-//     date: ISO string,
-//     mode: 'simulation' | 'reel',
-//     totalVerifies: number,
-//     actions: [ { produit, changements: [{couleur, vers, nb}] } ],
-//     alerte: bool,
-//   }
-// ─────────────────────────────────────────────────────────────
 export async function ajouterEntree(entree) {
   try {
-    if (!existsSync(DOSSIER)) await mkdir(DOSSIER, { recursive: true });
-    const journal = await lireJournal();
-    // ajoute en tête (plus récent en premier)
-    journal.unshift({ date: new Date().toISOString(), ...entree });
-    // tronque
-    const tronque = journal.slice(0, MAX_ENTREES);
-    await writeFile(FICHIER, JSON.stringify(tronque, null, 2), 'utf8');
+    const { error } = await supabase.from('historique').insert({
+      date: new Date().toISOString(),
+      mode: entree.mode,
+      total_verifies: entree.totalVerifies,
+      alerte: !!entree.alerte,
+      produits: entree.produits || [],
+    });
+    if (error) throw error;
   } catch (err) {
-    console.error('[journal] Erreur écriture :', err.message);
+    console.error('[journal] écriture Supabase :', err.message);
   }
 }
