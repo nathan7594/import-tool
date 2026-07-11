@@ -185,6 +185,20 @@ router.get('/suivi', async (req, res) => {
   .note{margin-top:8px;} .note input{width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;}
   .vide{text-align:center;padding:50px;color:#999;}
   ${styleMenu()}
+
+  /* ADAPTATION MOBILE */
+  @media (max-width: 640px) {
+    .ref { flex-wrap: wrap; }
+    .vig { width: 70px; height: 70px; }
+    .refinfo { flex: 1 1 calc(100% - 82px); min-width: 0; }
+    .refnum { font-size: 15px; }
+    .variantes .var { font-size: 12px; }
+    .couleurs { padding-left: 0; }
+    .fournhead { flex-wrap: wrap; gap: 8px; }
+    .fournhead h3 { font-size: 15px; flex-basis: 100%; }
+    .wabtn { margin-left: 0; }
+    .tabs .tab { font-size: 13px; padding: 10px 4px; }
+  }
   #lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;}
   #lb img{max-width:90%;max-height:90%;border-radius:8px;}
 </style></head><body>

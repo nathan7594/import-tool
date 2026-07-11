@@ -147,6 +147,21 @@ router.get('/commandes', async (req, res) => {
   .recup input{width:22px;height:22px;cursor:pointer;}
   .vide{text-align:center;padding:50px;color:#999;}
   ${styleMenu()}
+
+  /* ADAPTATION MOBILE : sur petit écran, on empile proprement */
+  @media (max-width: 640px) {
+    .ref { flex-wrap: wrap; }
+    .vig { width: 70px; height: 70px; }
+    .refinfo { flex: 1 1 calc(100% - 82px); min-width: 0; }
+    .refnum { font-size: 15px; word-break: normal; }
+    .reftitre { font-size: 13px; }
+    .etat { flex: 1 1 100%; text-align: left; display: flex; align-items: center; gap: 16px; margin-top: 6px; padding-left: 82px; }
+    .recup { flex-direction: row; margin-top: 0; }
+    .past { white-space: normal; }
+    .fournhead { gap: 8px; }
+    .fournhead h3 { font-size: 15px; }
+    .tel { margin-left: 0; flex-basis: 100%; }
+  }
   #lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;}
   #lb img{max-width:90%;max-height:90%;border-radius:8px;}
 </style></head><body>
