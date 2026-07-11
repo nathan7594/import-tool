@@ -7,6 +7,7 @@ const LIENS = [
   { url: '/', label: 'Accueil', icone: '🏠' },
   { url: '/historique', label: 'Historique des checks', icone: '📊' },
   { url: '/commandes', label: 'Commandes fournisseurs', icone: '🛒' },
+  { url: '/suivi', label: 'Suivi des commandes', icone: '📋' },
 ];
 
 // Le HTML du menu burger (bouton + panneau latéral)

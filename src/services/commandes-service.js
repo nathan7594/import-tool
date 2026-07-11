@@ -11,6 +11,7 @@
 
 import { shopifyGraphQL } from './shopify-auth.js';
 import { lireEtats } from './commandes-etat.js';
+import { lireSuivi } from './suivi-service.js';
 
 // Récupère toutes les lignes de commande récentes, à plat
 async function lireLignesCommandes(nbCommandes = 100) {
@@ -112,4 +113,63 @@ export async function getCommandesGroupees() {
     aAcheter: grouper(aAcheter),
     dejaAchete: grouper(dejaAchete),
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Version enrichie avec le SUIVI (statut, ruptures par couleur, notes).
+// Regroupe par fournisseur -> référence -> variantes cumulées, et rattache
+// l'état de suivi de chaque référence (la couleur "Jaune / 46" -> couleur "Jaune").
+// ─────────────────────────────────────────────────────────────
+export async function getCommandesAvecSuivi() {
+  const lignes = await lireLignesCommandes();
+  const suivi = await lireSuivi(); // { vente_id: { statut, couleurs_rupture, note } }
+
+  // Regroupe toutes les ventes par fournisseur -> référence
+  const parFournisseur = {};
+  for (const l of lignes) {
+    parFournisseur[l.fournisseur] ||= {};
+    const refs = parFournisseur[l.fournisseur];
+    refs[l.reference] ||= {
+      reference: l.reference,
+      titre: l.titre,
+      image: l.image,
+      variantes: {},   // "Jaune / 46" -> quantité
+      couleurs: new Set(), // couleurs distinctes (pour le statut par couleur)
+      ids: [],         // toutes les ventes de cette référence
+      totalPieces: 0,
+    };
+    const e = refs[l.reference];
+    e.variantes[l.variante] = (e.variantes[l.variante] || 0) + l.quantite;
+    e.ids.push(l.id);
+    e.totalPieces += l.quantite;
+    if (!e.image && l.image) e.image = l.image;
+    // extraire la couleur depuis "Jaune / 46" -> "Jaune"
+    const couleur = (l.variante || '').split('/')[0].trim();
+    if (couleur) e.couleurs.add(couleur);
+  }
+
+  // Rattacher le suivi à chaque référence
+  // Le statut d'une référence = celui de ses ventes (on prend le plus "avancé" commun,
+  // sinon a_commander par défaut). Les ruptures = union des couleurs en rupture.
+  for (const refs of Object.values(parFournisseur)) {
+    for (const e of Object.values(refs)) {
+      let statut = 'a_commander';
+      const rupture = new Set();
+      let note = '';
+      for (const id of e.ids) {
+        const s = suivi[id];
+        if (s) {
+          if (s.statut && s.statut !== 'a_commander') statut = s.statut;
+          for (const c of s.couleurs_rupture || []) rupture.add(c);
+          if (s.note) note = s.note;
+        }
+      }
+      e.statut = statut;
+      e.couleurs = [...e.couleurs];           // Set -> array
+      e.couleursRupture = [...rupture];
+      e.note = note;
+    }
+  }
+
+  return parFournisseur;
 }

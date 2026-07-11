@@ -49,7 +49,14 @@ function pageLogin(erreur = false) {
 </body></html>`;
 }
 
-// Middleware : protège toutes les routes sauf /login
+// Routes appelées par l'EXTENSION (machine, pas navigateur) : elles ne peuvent pas
+// taper un mot de passe. On les laisse passer, mais protégées par un token secret
+// (APP_API_TOKEN) que l'extension envoie dans l'en-tête. Ces routes ne servent AUCUNE
+// donnée sensible affichable — juste la mécanique du check/import.
+const ROUTES_MACHINE = ['/check/produits', '/check/resultats', '/import-produit'];
+const API_TOKEN = process.env.APP_API_TOKEN || '';
+
+// Middleware : protège l'interface par mot de passe, laisse passer les routes machine.
 export function protection(req, res, next) {
   // si pas de mot de passe configuré, on laisse tout passer (évite de se verrouiller dehors)
   if (!MOT_DE_PASSE) return next();
@@ -57,7 +64,15 @@ export function protection(req, res, next) {
   // la route de login est toujours accessible
   if (req.path === '/login') return next();
 
-  // déjà connecté ?
+  // routes machine (extension) : accès par token, ou libre si aucun token n'est configuré
+  if (ROUTES_MACHINE.some((r) => req.path.startsWith(r))) {
+    if (!API_TOKEN) return next(); // pas de token configuré -> on laisse (cas local simple)
+    const recu = req.headers['x-api-token'] || '';
+    if (recu === API_TOKEN) return next();
+    return res.status(401).json({ ok: false, erreur: 'token invalide' });
+  }
+
+  // déjà connecté ? (interface web)
   const jeton = lireCookie(req, 'session');
   if (jeton === JETON_VALIDE) return next();
 

@@ -11,6 +11,7 @@ import historiqueRoute from './routes/historique.js';
 import commandesRoute from './routes/commandes.js';
 import accueilRoute from './routes/accueil.js';
 import { protection, traiterLogin } from './services/auth.js';
+import suiviRoute from './routes/suivi.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true })); // pour lire le formulaire de login
+app.use('/', suiviRoute);
 
 // ── Routes PUBLIQUES (accessibles sans mot de passe) ──
 // Sante : verifier d'un coup d'oeil que le serveur tourne.
